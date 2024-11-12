@@ -1,12 +1,28 @@
 twist_pid_controller:
   ros__parameters:
-    kp_linear: 1.0
-    ki_linear: 0.0
-    kd_linear: 0.0
+    kp_linear_x: 1.0
+    ki_linear_x: 0.0
+    kd_linear_x: 0.0
 
-    kp_angular: 1.0
-    ki_angular: 0.0
-    kd_angular: 0.0
+    kp_linear_y: 1.0
+    ki_linear_y: 0.0
+    kd_linear_y: 0.0
+
+    kp_linear_z: 1.0
+    ki_linear_z: 0.0
+    kd_linear_z: 0.0
+
+    kp_angular_x: 1.0
+    ki_angular_x: 0.0
+    kd_angular_x: 0.0
+
+    kp_angular_y: 1.0
+    ki_angular_y: 0.0
+    kd_angular_y: 0.0
+
+    kp_angular_z: 1.0
+    ki_angular_z: 0.0
+    kd_angular_z: 0.0
 
     max_integral_linear: 1.0
     max_integral_angular: 1.0
@@ -15,3 +31,12 @@ twist_pid_controller:
 
     debug: true  # Enable debug mode
     debug_topic: "pid_debug"  # Topic name for debug messages
+    joy_topic: "rsl_joy"  # Topic name for the joystick
+
+    # Topic name for the command velocity
+    cmd_vel_input_topic: "cmd_vel_in"
+    feedback_vel_topic: "feedback_vel"
+    cmd_vel_out_topic: "cmd_vel_out"
+
+    
+

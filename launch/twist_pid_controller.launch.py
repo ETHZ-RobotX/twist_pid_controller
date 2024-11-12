@@ -1,15 +1,17 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 import os
+from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    package_dir = os.path.join(os.getenv('COLCON_PREFIX_PATH'), 'twist_pid_controller')
-    config = os.path.join(package_dir, 'share', 'twist_pid_controller', 'config', 'config.yaml')
+    package_name = 'twist_pid_controller'
+    pkg_share = get_package_share_directory(package_name)
+    config = os.path.join(pkg_share, 'config', 'config.yaml')
 
     return LaunchDescription([
         Node(
-            package='twist_pid_controller',
-            executable='twist_pid_controller',
+            package=package_name,
+            executable='twist_pid_controller_node',  # Updated executable name
             name='twist_pid_controller',
             parameters=[config],
             output='screen'

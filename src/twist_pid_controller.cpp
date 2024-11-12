@@ -4,7 +4,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
-#include "geometry_msgs/msg/vector3.hpp"
+#include "sensor_msgs/msg/joy.hpp"
 #include "twist_pid_controller/msg/pid_debug.hpp"
 
 using namespace std::chrono_literals;
@@ -12,17 +12,33 @@ using namespace std::chrono_literals;
 class TwistPIDController : public rclcpp::Node
 {
 public:
-  TwistPIDController(const rclcpp::NodeOptions & options)
-  : Node("twist_pid_controller", options)
+  TwistPIDController()
+  : Node("twist_pid_controller")
   {
     // Declare and get parameters
-    this->declare_parameter<double>("kp_linear", 1.0);
-    this->declare_parameter<double>("ki_linear", 0.0);
-    this->declare_parameter<double>("kd_linear", 0.0);
+    this->declare_parameter<double>("kp_linear_x", 1.0);
+    this->declare_parameter<double>("ki_linear_x", 0.0);
+    this->declare_parameter<double>("kd_linear_x", 0.0);
 
-    this->declare_parameter<double>("kp_angular", 1.0);
-    this->declare_parameter<double>("ki_angular", 0.0);
-    this->declare_parameter<double>("kd_angular", 0.0);
+    this->declare_parameter<double>("kp_linear_y", 1.0);
+    this->declare_parameter<double>("ki_linear_y", 0.0);
+    this->declare_parameter<double>("kd_linear_y", 0.0);
+
+    this->declare_parameter<double>("kp_linear_z", 1.0);
+    this->declare_parameter<double>("ki_linear_z", 0.0);
+    this->declare_parameter<double>("kd_linear_z", 0.0);
+
+    this->declare_parameter<double>("kp_angular_x", 1.0);
+    this->declare_parameter<double>("ki_angular_x", 0.0);
+    this->declare_parameter<double>("kd_angular_x", 0.0);
+
+    this->declare_parameter<double>("kp_angular_y", 1.0);
+    this->declare_parameter<double>("ki_angular_y", 0.0);
+    this->declare_parameter<double>("kd_angular_y", 0.0);
+
+    this->declare_parameter<double>("kp_angular_z", 1.0);
+    this->declare_parameter<double>("ki_angular_z", 0.0);
+    this->declare_parameter<double>("kd_angular_z", 0.0);
 
     this->declare_parameter<double>("max_integral_linear", 1.0);
     this->declare_parameter<double>("max_integral_angular", 1.0);
@@ -32,23 +48,47 @@ public:
     this->declare_parameter<bool>("debug", false);
     this->declare_parameter<std::string>("debug_topic", "pid_debug");
 
-    this->get_parameter("kp_linear", kp_linear_);
-    this->get_parameter("ki_linear", ki_linear_);
-    this->get_parameter("kd_linear", kd_linear_);
+    this->declare_parameter<std::string>("cmd_vel_input_topic", "cmd_vel");
+    this->declare_parameter<std::string>("feedback_vel_topic", "feedback_vel");
+    this->declare_parameter<std::string>("cmd_vel_out_topic", "cmd_vel_out");
 
-    this->get_parameter("kp_angular", kp_angular_);
-    this->get_parameter("ki_angular", ki_angular_);
-    this->get_parameter("kd_angular", kd_angular_);
+    this->get_parameter("kp_linear_x", kp_linear_x_);
+    this->get_parameter("ki_linear_x", ki_linear_x_);
+    this->get_parameter("kd_linear_x", kd_linear_x_);
+
+    this->get_parameter("kp_linear_y", kp_linear_y_);
+    this->get_parameter("ki_linear_y", ki_linear_y_);
+    this->get_parameter("kd_linear_y", kd_linear_y_);
+
+    this->get_parameter("kp_linear_z", kp_linear_z_);
+    this->get_parameter("ki_linear_z", ki_linear_z_);
+    this->get_parameter("kd_linear_z", kd_linear_z_);
+
+    this->get_parameter("kp_angular_x", kp_angular_x_);
+    this->get_parameter("ki_angular_x", ki_angular_x_);
+    this->get_parameter("kd_angular_x", kd_angular_x_);
+
+    this->get_parameter("kp_angular_y", kp_angular_y_);
+    this->get_parameter("ki_angular_y", ki_angular_y_);
+    this->get_parameter("kd_angular_y", kd_angular_y_);
+
+    this->get_parameter("kp_angular_z", kp_angular_z_);
+    this->get_parameter("ki_angular_z", ki_angular_z_);
+    this->get_parameter("kd_angular_z", kd_angular_z_);
 
     this->get_parameter("max_integral_linear", max_integral_linear_);
     this->get_parameter("max_integral_angular", max_integral_angular_);
 
     double control_frequency;
     this->get_parameter("control_frequency", control_frequency);
-    control_period_ = rclcpp::Duration::from_seconds(1.0 / control_frequency);
+    control_period_ = std::chrono::duration<double>(1.0 / control_frequency);
 
     this->get_parameter("debug", debug_);
     this->get_parameter("debug_topic", debug_topic_);
+
+    this->get_parameter("cmd_vel_input_topic", cmd_vel_in_);
+    this->get_parameter("feedback_vel_topic", feedback_vel_);
+    this->get_parameter("cmd_vel_out_topic", cmd_vel_out_);
 
     // Initialize variables
     previous_time_ = this->now();
@@ -73,19 +113,22 @@ public:
     previous_desired_angular_y_ = 0.0;
     previous_desired_angular_z_ = 0.0;
 
-    // Subscribers and Publishers
+    // // Subscribers and Publishers
     cmd_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "cmd_vel_in", 10,
+      cmd_vel_in_, 10,
       std::bind(&TwistPIDController::cmdCallback, this, std::placeholders::_1));
 
     feedback_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
-      "feedback_vel", 10,
+      feedback_vel_, 10,
       std::bind(&TwistPIDController::feedbackCallback, this, std::placeholders::_1));
 
-    pid_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>("cmd_vel_out", 10);
+    pid_publisher_ = this->create_publisher<geometry_msgs::msg::Twist>(cmd_vel_out_, 10);
 
     if (debug_) {
       debug_publisher_ = this->create_publisher<twist_pid_controller::msg::PidDebug>(debug_topic_, 10);
+      joy_subscriber_ = this->create_subscription<sensor_msgs::msg::Joy>(
+        "joy", 10,
+        std::bind(&TwistPIDController::joyCallback, this, std::placeholders::_1));
     }
 
     // Timer for control loop
@@ -107,6 +150,14 @@ private:
     feedback_twist_ = *msg;
   }
 
+  void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
+  {
+    std::lock_guard<std::mutex> lock(joy_mutex_);
+    joy_msg_ = *msg;
+  }
+
+  void 
+
   void controlLoop()
   {
     // Measure dt
@@ -116,6 +167,7 @@ private:
 
     if (dt <= 0.0) {
       dt = 1e-6;  // Prevent division by zero or negative time
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100, "Control loop period is 0 or negative, setting to 1e-6");
     }
 
     // Get desired and feedback velocities
@@ -209,14 +261,16 @@ private:
     geometry_msgs::msg::Twist control_output;
 
     // Linear velocities
-    control_output.linear.x = kp_linear_ * error_linear_x + ki_linear_ * integral_linear_x_ + kd_linear_ * derivative_linear_x;
-    control_output.linear.y = kp_linear_ * error_linear_y + ki_linear_ * integral_linear_y_ + kd_linear_ * derivative_linear_y;
-    control_output.linear.z = kp_linear_ * error_linear_z + ki_linear_ * integral_linear_z_ + kd_linear_ * derivative_linear_z;
+
+    control_output.linear.x = kp_linear_x_ * error_linear_x + ki_linear_x_ * integral_linear_x_ + kd_linear_x_ * derivative_linear_x;
+    control_output.linear.y = kp_linear_y_ * error_linear_y + ki_linear_y_ * integral_linear_y_ + kd_linear_y_ * derivative_linear_y;
+    control_output.linear.z = kp_linear_z_ * error_linear_z + ki_linear_z_ * integral_linear_z_ + kd_linear_z_ * derivative_linear_z;
 
     // Angular velocities
-    control_output.angular.x = kp_angular_ * error_angular_x + ki_angular_ * integral_angular_x_ + kd_angular_ * derivative_angular_x;
-    control_output.angular.y = kp_angular_ * error_angular_y + ki_angular_ * integral_angular_y_ + kd_angular_ * derivative_angular_y;
-    control_output.angular.z = kp_angular_ * error_angular_z + ki_angular_ * integral_angular_z_ + kd_angular_ * derivative_angular_z;
+
+    control_output.angular.x = kp_angular_x_ * error_angular_x + ki_angular_x_ * integral_angular_x_ + kd_angular_x_ * derivative_angular_x;
+    control_output.angular.y = kp_angular_y_ * error_angular_y + ki_angular_y_ * integral_angular_y_ + kd_angular_y_ * derivative_angular_y;
+    control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
 
     // Publish the control output
     pid_publisher_->publish(control_output);
@@ -253,17 +307,29 @@ private:
       debug_msg.derivative_angular.z = derivative_angular_z;
 
       // PID Gains
-      debug_msg.kp.x = kp_linear_;
-      debug_msg.kp.y = kp_linear_;
-      debug_msg.kp.z = kp_linear_;
+      debug_msg.kp_linear.x = kp_linear_x_;
+      debug_msg.kp_linear.y = kp_linear_y_;
+      debug_msg.kp_linear.z = kp_linear_z_;
 
-      debug_msg.ki.x = ki_linear_;
-      debug_msg.ki.y = ki_linear_;
-      debug_msg.ki.z = ki_linear_;
+      debug_msg.ki_linear.x = ki_linear_x_;
+      debug_msg.ki_linear.y = ki_linear_y_;
+      debug_msg.ki_linear.z = ki_linear_z_;
 
-      debug_msg.kd.x = kd_linear_;
-      debug_msg.kd.y = kd_linear_;
-      debug_msg.kd.z = kd_linear_;
+      debug_msg.kd_linear.x = kd_linear_x_;
+      debug_msg.kd_linear.y = kd_linear_y_;
+      debug_msg.kd_linear.z = kd_linear_z_;
+
+      debug_msg.kp_angular.x = kp_angular_x_;
+      debug_msg.kp_angular.y = kp_angular_y_;
+      debug_msg.kp_angular.z = kp_angular_z_;
+
+      debug_msg.ki_angular.x = ki_angular_x_;
+      debug_msg.ki_angular.y = ki_angular_y_;
+      debug_msg.ki_angular.z = ki_angular_z_;
+
+      debug_msg.kd_angular.x = kd_angular_x_;
+      debug_msg.kd_angular.y = kd_angular_y_;
+      debug_msg.kd_angular.z = kd_angular_z_;
 
       debug_publisher_->publish(debug_msg);
     }
@@ -293,7 +359,11 @@ private:
   double max_integral_linear_;
   double max_integral_angular_;
 
-  rclcpp::Duration control_period_;
+  std::string cmd_vel_in_;
+  std::string feedback_vel_;
+  std::string cmd_vel_out_;
+
+  std::chrono::duration<double> control_period_;
 
   bool debug_;
   std::string debug_topic_;
@@ -325,9 +395,12 @@ private:
   double previous_desired_angular_y_;
   double previous_desired_angular_z_;
 
-  // Subscribers and Publishers
+  // Subscribers
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_subscriber_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr feedback_subscriber_;
+  rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_subscriber_;
+
+  // Publishers
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr pid_publisher_;
 
   // Debug publisher
@@ -343,15 +416,14 @@ private:
   // Commanded and feedback twists
   geometry_msgs::msg::Twist desired_twist_;
   geometry_msgs::msg::Twist feedback_twist_;
+  sensor_msgs::msg::Joy joy_msg_;
 };
 
 int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
 
-  // Create a node with options to allow parameter overrides
-  rclcpp::NodeOptions options;
-  auto node = std::make_shared<TwistPIDController>(options);
+  auto node = std::make_shared<TwistPIDController>();
 
   rclcpp::spin(node);
   rclcpp::shutdown();
