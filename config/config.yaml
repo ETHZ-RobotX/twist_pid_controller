@@ -38,5 +38,7 @@ twist_pid_controller:
     feedback_vel_topic: "feedback_vel"
     cmd_vel_out_topic: "cmd_vel_out"
 
+    k_increment: 0.1  # Increment for the PID gains
+
     
 

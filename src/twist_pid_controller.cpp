@@ -47,10 +47,12 @@ public:
 
     this->declare_parameter<bool>("debug", false);
     this->declare_parameter<std::string>("debug_topic", "pid_debug");
+    this->declare_parameter<double>("k_increment", 0.1);
 
     this->declare_parameter<std::string>("cmd_vel_input_topic", "cmd_vel");
     this->declare_parameter<std::string>("feedback_vel_topic", "feedback_vel");
     this->declare_parameter<std::string>("cmd_vel_out_topic", "cmd_vel_out");
+    this->declare_parameter<std::string>("joy_topic", "joy");
 
     this->get_parameter("kp_linear_x", kp_linear_x_);
     this->get_parameter("ki_linear_x", ki_linear_x_);
@@ -85,10 +87,12 @@ public:
 
     this->get_parameter("debug", debug_);
     this->get_parameter("debug_topic", debug_topic_);
+    this->get_parameter("k_increment", k_increment_);
 
     this->get_parameter("cmd_vel_input_topic", cmd_vel_in_);
     this->get_parameter("feedback_vel_topic", feedback_vel_);
     this->get_parameter("cmd_vel_out_topic", cmd_vel_out_);
+    this->get_parameter("joy_topic", joy_topic_);
 
     // Initialize variables
     previous_time_ = this->now();
@@ -127,7 +131,7 @@ public:
     if (debug_) {
       debug_publisher_ = this->create_publisher<twist_pid_controller::msg::PidDebug>(debug_topic_, 10);
       joy_subscriber_ = this->create_subscription<sensor_msgs::msg::Joy>(
-        "joy", 10,
+        joy_topic_, 10,
         std::bind(&TwistPIDController::joyCallback, this, std::placeholders::_1));
     }
 
@@ -155,8 +159,6 @@ private:
     std::lock_guard<std::mutex> lock(joy_mutex_);
     joy_msg_ = *msg;
   }
-
-  void 
 
   void controlLoop()
   {
@@ -332,6 +334,33 @@ private:
       debug_msg.kd_angular.z = kd_angular_z_;
 
       debug_publisher_->publish(debug_msg);
+
+      if ((joy_msg_.buttons[KP_BUTTON_X] || joy_msg_.buttons[KP_BUTTON_Y] || joy_msg_.buttons[KP_BUTTON_ANG_Z]) && !button_pressed_) {
+        button_pressed_ = true;
+        if (joy_msg_.buttons[KP_BUTTON_X]) {
+          if (joy_msg_.buttons[INCREASE]) {
+            kp_linear_x_ += k_increment_;
+          } else if (joy_msg_.buttons[DECREASE]) {
+            kp_linear_x_ -= k_increment_;
+          }
+        } else if (joy_msg_.buttons[KP_BUTTON_Y]) {
+          if (joy_msg_.buttons[INCREASE]) {
+            kp_linear_y_ += k_increment_;
+          } else if (joy_msg_.buttons[DECREASE]) {
+            kp_linear_y_ -= k_increment_;
+          }
+        } else if (joy_msg_.buttons[KP_BUTTON_ANG_Z]) {
+          if (joy_msg_.buttons[INCREASE]) {
+            kp_angular_z_ += k_increment_;
+          } else if (joy_msg_.buttons[DECREASE]) {
+            kp_angular_z_ -= k_increment_;
+          }
+        }
+      } else if (button_pressed_) {
+        return;
+      } else {
+        button_pressed_ = false;
+      }
     }
   }
 
@@ -348,13 +377,29 @@ private:
   }
 
   // Parameters
-  double kp_linear_;
-  double ki_linear_;
-  double kd_linear_;
+  double kp_linear_x_;
+  double ki_linear_x_;
+  double kd_linear_x_;
 
-  double kp_angular_;
-  double ki_angular_;
-  double kd_angular_;
+  double kp_linear_y_;
+  double ki_linear_y_;
+  double kd_linear_y_;
+
+  double kp_linear_z_;
+  double ki_linear_z_;
+  double kd_linear_z_;
+
+  double kp_angular_x_;
+  double ki_angular_x_;
+  double kd_angular_x_;
+
+  double kp_angular_y_; 
+  double ki_angular_y_; 
+  double kd_angular_y_;
+
+  double kp_angular_z_;
+  double ki_angular_z_;
+  double kd_angular_z_; 
 
   double max_integral_linear_;
   double max_integral_angular_;
@@ -366,7 +411,9 @@ private:
   std::chrono::duration<double> control_period_;
 
   bool debug_;
+  double k_increment_;
   std::string debug_topic_;
+  std::string joy_topic_;
 
   // State variables
   rclcpp::Time previous_time_;
@@ -412,11 +459,21 @@ private:
   // Mutexes for thread safety
   std::mutex command_mutex_;
   std::mutex feedback_mutex_;
+  std::mutex joy_mutex_;
 
   // Commanded and feedback twists
   geometry_msgs::msg::Twist desired_twist_;
   geometry_msgs::msg::Twist feedback_twist_;
   sensor_msgs::msg::Joy joy_msg_;
+
+  // Debug message
+  int INCREASE = 11;
+  int DECREASE = 12;
+  int KP_BUTTON_X = 2;
+  int KP_BUTTON_Y = 3;
+  int KP_BUTTON_ANG_Z = 1;
+
+  bool button_pressed_ = false;
 };
 
 int main(int argc, char **argv)
