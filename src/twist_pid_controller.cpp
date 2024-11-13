@@ -139,6 +139,8 @@ public:
     control_timer_ = this->create_wall_timer(
       control_period_,
       std::bind(&TwistPIDController::controlLoop, this));
+
+    RCLCPP_INFO(this->get_logger(), "Twist PID Controller node has been started");
   }
 
 private:
@@ -160,9 +162,9 @@ private:
     joy_msg_ = *msg;
   }
 
-    template <typename T> int getSgn(T val) {
-        return (T(0) < val) - (val < T(0));
-    }
+  template <typename T> int getSgn(T val) {
+      return (T(0) < val) - (val < T(0));
+  }
 
   void controlLoop()
   {
@@ -199,25 +201,25 @@ private:
     double error_angular_y = desired.angular.y - feedback.angular.y;
     double error_angular_z = desired.angular.z - feedback.angular.z;
 
-  // Reset integrator if command changes direction or braking is desired
-  if ((getSgn(desired.linear.x) != getSgn(previous_desired_linear_x_)) || (abs(desired.linear.x) < 0.05)) {
-      integral_linear_x_ = 0.0;
-  }
-  if ((getSgn(desired.linear.y) != getSgn(previous_desired_linear_y_)) || (abs(desired.linear.y) < 0.05)) {
-      integral_linear_y_ = 0.0;
-  }
-  if ((getSgn(desired.linear.z) != getSgn(previous_desired_linear_z_)) || (abs(desired.linear.z) < 0.05)) {
-      integral_linear_z_ = 0.0;
-  }
-  if ((getSgn(desired.angular.x) != getSgn(previous_desired_angular_x_)) || (abs(desired.angular.x) < 0.05)) {
-      integral_angular_x_ = 0.0;
-  }
-  if ((getSgn(desired.angular.y) != getSgn(previous_desired_angular_y_)) || (abs(desired.angular.y) < 0.05)) {
-      integral_angular_y_ = 0.0;
-  }
-  if ((getSgn(desired.angular.z) != getSgn(previous_desired_angular_z_)) || (abs(desired.angular.z) < 0.05)) {
-      integral_angular_z_ = 0.0;
-  }
+    // Reset integrator if command changes direction or braking is desired
+    if ((getSgn(desired.linear.x) != getSgn(previous_desired_linear_x_)) || (abs(desired.linear.x) < 0.05)) {
+        integral_linear_x_ = 0.0;
+    }
+    if ((getSgn(desired.linear.y) != getSgn(previous_desired_linear_y_)) || (abs(desired.linear.y) < 0.05)) {
+        integral_linear_y_ = 0.0;
+    }
+    if ((getSgn(desired.linear.z) != getSgn(previous_desired_linear_z_)) || (abs(desired.linear.z) < 0.05)) {
+        integral_linear_z_ = 0.0;
+    }
+    if ((getSgn(desired.angular.x) != getSgn(previous_desired_angular_x_)) || (abs(desired.angular.x) < 0.05)) {
+        integral_angular_x_ = 0.0;
+    }
+    if ((getSgn(desired.angular.y) != getSgn(previous_desired_angular_y_)) || (abs(desired.angular.y) < 0.05)) {
+        integral_angular_y_ = 0.0;
+    }
+    if ((getSgn(desired.angular.z) != getSgn(previous_desired_angular_z_)) || (abs(desired.angular.z) < 0.05)) {
+        integral_angular_z_ = 0.0;
+    }
 
 
     // Update previous desired velocities
@@ -269,13 +271,11 @@ private:
     geometry_msgs::msg::Twist control_output;
 
     // Linear velocities
-
     control_output.linear.x = kp_linear_x_ * error_linear_x + ki_linear_x_ * integral_linear_x_ + kd_linear_x_ * derivative_linear_x;
     control_output.linear.y = kp_linear_y_ * error_linear_y + ki_linear_y_ * integral_linear_y_ + kd_linear_y_ * derivative_linear_y;
     control_output.linear.z = kp_linear_z_ * error_linear_z + ki_linear_z_ * integral_linear_z_ + kd_linear_z_ * derivative_linear_z;
 
     // Angular velocities
-
     control_output.angular.x = kp_angular_x_ * error_angular_x + ki_angular_x_ * integral_angular_x_ + kd_angular_x_ * derivative_angular_x;
     control_output.angular.y = kp_angular_y_ * error_angular_y + ki_angular_y_ * integral_angular_y_ + kd_angular_y_ * derivative_angular_y;
     control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
@@ -341,32 +341,62 @@ private:
 
       debug_publisher_->publish(debug_msg);
 
-      if ((joy_msg_.buttons[KP_BUTTON_X] || joy_msg_.buttons[KP_BUTTON_Y] || joy_msg_.buttons[KP_BUTTON_ANG_Z]) && !button_pressed_) {
-        button_pressed_ = true;
+      if (!joy_msg_.buttons.empty() && (joy_msg_.buttons[KP_BUTTON_X] || joy_msg_.buttons[KP_BUTTON_Y] || joy_msg_.buttons[KP_BUTTON_ANG_Z]) && !button_pressed_) {
         if (joy_msg_.buttons[KP_BUTTON_X]) {
           if (joy_msg_.buttons[INCREASE]) {
             kp_linear_x_ += k_increment_;
+            button_pressed_ = true;
           } else if (joy_msg_.buttons[DECREASE]) {
             kp_linear_x_ -= k_increment_;
+            button_pressed_ = true;
           }
         } else if (joy_msg_.buttons[KP_BUTTON_Y]) {
           if (joy_msg_.buttons[INCREASE]) {
             kp_linear_y_ += k_increment_;
+            button_pressed_ = true;
           } else if (joy_msg_.buttons[DECREASE]) {
             kp_linear_y_ -= k_increment_;
+            button_pressed_ = true;
           }
         } else if (joy_msg_.buttons[KP_BUTTON_ANG_Z]) {
           if (joy_msg_.buttons[INCREASE]) {
             kp_angular_z_ += k_increment_;
+            button_pressed_ = true;
           } else if (joy_msg_.buttons[DECREASE]) {
             kp_angular_z_ -= k_increment_;
+            button_pressed_ = true;
           }
         }
-      } else if (button_pressed_) {
+      } else if (!joy_msg_.buttons.empty() && (joy_msg_.buttons[INCREASE] || joy_msg_.buttons[DECREASE])) {
         return;
       } else {
         button_pressed_ = false;
       }
+
+      // Clamp the gains to positive values
+      kp_linear_x_ = std::max(0.0, kp_linear_x_);
+      ki_linear_x_ = std::max(0.0, ki_linear_x_);
+      kd_linear_x_ = std::max(0.0, kd_linear_x_);
+
+      kp_linear_y_ = std::max(0.0, kp_linear_y_);
+      ki_linear_y_ = std::max(0.0, ki_linear_y_);
+      kd_linear_y_ = std::max(0.0, kd_linear_y_);
+
+      kp_linear_z_ = std::max(0.0, kp_linear_z_);
+      ki_linear_z_ = std::max(0.0, ki_linear_z_);
+      kd_linear_z_ = std::max(0.0, kd_linear_z_);
+
+      kp_angular_x_ = std::max(0.0, kp_angular_x_);
+      ki_angular_x_ = std::max(0.0, ki_angular_x_);
+      kd_angular_x_ = std::max(0.0, kd_angular_x_);
+
+      kp_angular_y_ = std::max(0.0, kp_angular_y_);
+      ki_angular_y_ = std::max(0.0, ki_angular_y_);
+      kd_angular_y_ = std::max(0.0, kd_angular_y_);
+
+      kp_angular_z_ = std::max(0.0, kp_angular_z_);
+      ki_angular_z_ = std::max(0.0, ki_angular_z_);
+      kd_angular_z_ = std::max(0.0, kd_angular_z_);
     }
   }
 

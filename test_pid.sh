@@ -1,0 +1,24 @@
+#!/bin/bash
+
+# Constant feedback_vel publisher at 100 Hz
+ros2 topic pub -r 100 /feedback_vel geometry_msgs/Twist "linear:
+  x: 0.5
+  y: 0.0
+  z: 0.0
+angular:
+  x: 0.0
+  y: 0.0
+  z: 0.0" &
+
+# Constant cmd_vel_in publisher at 5 Hz
+ros2 topic pub -r 5 /cmd_vel_in geometry_msgs/Twist "linear:
+  x: 1.0
+  y: 0.0
+  z: 0.0
+angular:
+  x: 0.0
+  y: 0.0
+  z: 0.0" &
+
+# Wait for background processes to finish
+wait
