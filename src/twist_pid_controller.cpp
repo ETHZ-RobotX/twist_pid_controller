@@ -160,6 +160,10 @@ private:
     joy_msg_ = *msg;
   }
 
+    template <typename T> int getSgn(T val) {
+        return (T(0) < val) - (val < T(0));
+    }
+
   void controlLoop()
   {
     // Measure dt
@@ -185,6 +189,7 @@ private:
       feedback = feedback_twist_;
     }
 
+
     // Compute errors
     double error_linear_x = desired.linear.x - feedback.linear.x;
     double error_linear_y = desired.linear.y - feedback.linear.y;
@@ -194,25 +199,26 @@ private:
     double error_angular_y = desired.angular.y - feedback.angular.y;
     double error_angular_z = desired.angular.z - feedback.angular.z;
 
-    // Reset integrator if command changes direction or braking is desired
-    if ((desired.linear.x * previous_desired_linear_x_ < 0.0) || (desired.linear.x == 0.0)) {
+  // Reset integrator if command changes direction or braking is desired
+  if ((getSgn(desired.linear.x) != getSgn(previous_desired_linear_x_)) || (abs(desired.linear.x) < 0.05)) {
       integral_linear_x_ = 0.0;
-    }
-    if ((desired.linear.y * previous_desired_linear_y_ < 0.0) || (desired.linear.y == 0.0)) {
+  }
+  if ((getSgn(desired.linear.y) != getSgn(previous_desired_linear_y_)) || (abs(desired.linear.y) < 0.05)) {
       integral_linear_y_ = 0.0;
-    }
-    if ((desired.linear.z * previous_desired_linear_z_ < 0.0) || (desired.linear.z == 0.0)) {
+  }
+  if ((getSgn(desired.linear.z) != getSgn(previous_desired_linear_z_)) || (abs(desired.linear.z) < 0.05)) {
       integral_linear_z_ = 0.0;
-    }
-    if ((desired.angular.x * previous_desired_angular_x_ < 0.0) || (desired.angular.x == 0.0)) {
+  }
+  if ((getSgn(desired.angular.x) != getSgn(previous_desired_angular_x_)) || (abs(desired.angular.x) < 0.05)) {
       integral_angular_x_ = 0.0;
-    }
-    if ((desired.angular.y * previous_desired_angular_y_ < 0.0) || (desired.angular.y == 0.0)) {
+  }
+  if ((getSgn(desired.angular.y) != getSgn(previous_desired_angular_y_)) || (abs(desired.angular.y) < 0.05)) {
       integral_angular_y_ = 0.0;
-    }
-    if ((desired.angular.z * previous_desired_angular_z_ < 0.0) || (desired.angular.z == 0.0)) {
+  }
+  if ((getSgn(desired.angular.z) != getSgn(previous_desired_angular_z_)) || (abs(desired.angular.z) < 0.05)) {
       integral_angular_z_ = 0.0;
-    }
+  }
+
 
     // Update previous desired velocities
     previous_desired_linear_x_ = desired.linear.x;
