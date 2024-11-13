@@ -40,6 +40,8 @@ public:
     this->declare_parameter<double>("ki_angular_z", 0.0);
     this->declare_parameter<double>("kd_angular_z", 0.0);
 
+    this->declare_parameter<bool>("feed_forward", false);
+
     this->declare_parameter<double>("max_integral_linear", 1.0);
     this->declare_parameter<double>("max_integral_angular", 1.0);
 
@@ -77,6 +79,8 @@ public:
     this->get_parameter("kp_angular_z", kp_angular_z_);
     this->get_parameter("ki_angular_z", ki_angular_z_);
     this->get_parameter("kd_angular_z", kd_angular_z_);
+
+    this->get_parameter("feed_forward:", feed_forward_);
 
     this->get_parameter("max_integral_linear", max_integral_linear_);
     this->get_parameter("max_integral_angular", max_integral_angular_);
@@ -221,7 +225,6 @@ private:
         integral_angular_z_ = 0.0;
     }
 
-
     // Update previous desired velocities
     previous_desired_linear_x_ = desired.linear.x;
     previous_desired_linear_y_ = desired.linear.y;
@@ -279,6 +282,16 @@ private:
     control_output.angular.x = kp_angular_x_ * error_angular_x + ki_angular_x_ * integral_angular_x_ + kd_angular_x_ * derivative_angular_x;
     control_output.angular.y = kp_angular_y_ * error_angular_y + ki_angular_y_ * integral_angular_y_ + kd_angular_y_ * derivative_angular_y;
     control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
+
+    if (feed_forward_) {
+      control_output.linear.x += desired.linear.x;
+      control_output.linear.y += desired.linear.y;
+      control_output.linear.z += desired.linear.z;
+
+      control_output.angular.x += desired.angular.x;
+      control_output.angular.y += desired.angular.y;
+      control_output.angular.z += desired.angular.z;
+    }
 
     // Publish the control output
     pid_publisher_->publish(control_output);
@@ -436,6 +449,8 @@ private:
   double kp_angular_z_;
   double ki_angular_z_;
   double kd_angular_z_; 
+
+  bool feed_forward_;
 
   double max_integral_linear_;
   double max_integral_angular_;

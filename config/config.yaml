@@ -24,6 +24,8 @@ twist_pid_controller:
     ki_angular_z: 0.0
     kd_angular_z: 0.0
 
+    feed_forward: True
+
     max_integral_linear: 1.0
     max_integral_angular: 1.0
 
