@@ -40,7 +40,7 @@ public:
     this->declare_parameter<double>("ki_angular_z", 0.0);
     this->declare_parameter<double>("kd_angular_z", 0.0);
 
-    this->declare_parameter<bool>("feed_forward", false);
+    this->declare_parameter<bool>("feed_forward", true);
 
     this->declare_parameter<double>("max_integral_linear", 1.0);
     this->declare_parameter<double>("max_integral_angular", 1.0);
@@ -80,7 +80,7 @@ public:
     this->get_parameter("ki_angular_z", ki_angular_z_);
     this->get_parameter("kd_angular_z", kd_angular_z_);
 
-    this->get_parameter("feed_forward:", feed_forward_);
+    this->get_parameter("feed_forward", feed_forward_);
 
     this->get_parameter("max_integral_linear", max_integral_linear_);
     this->get_parameter("max_integral_angular", max_integral_angular_);
@@ -282,6 +282,8 @@ private:
     control_output.angular.x = kp_angular_x_ * error_angular_x + ki_angular_x_ * integral_angular_x_ + kd_angular_x_ * derivative_angular_x;
     control_output.angular.y = kp_angular_y_ * error_angular_y + ki_angular_y_ * integral_angular_y_ + kd_angular_y_ * derivative_angular_y;
     control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
+
+    printf("feedforward: %d\n", feed_forward_);
 
     if (feed_forward_) {
       RCLCPP_WARN_ONCE(this->get_logger(), "Feed forward is enabled, make sure gains are not too high");
