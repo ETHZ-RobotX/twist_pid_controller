@@ -283,8 +283,6 @@ private:
     control_output.angular.y = kp_angular_y_ * error_angular_y + ki_angular_y_ * integral_angular_y_ + kd_angular_y_ * derivative_angular_y;
     control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
 
-    printf("feedforward: %d\n", feed_forward_);
-
     if (feed_forward_) {
       RCLCPP_WARN_ONCE(this->get_logger(), "Feed forward is enabled, make sure gains are not too high");
       control_output.linear.x += desired.linear.x;

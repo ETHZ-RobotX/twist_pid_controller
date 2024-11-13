@@ -38,7 +38,7 @@ twist_pid_controller:
     # Topic name for the command velocity
     cmd_vel_input_topic: "cmd_vel_in"
     feedback_vel_topic: "feedback_vel"
-    cmd_vel_out_topic: "cmd_vel_out"
+    cmd_vel_out_topic: "/path_manager/path_manager_ros/nav_vel"
 
     k_increment: 0.05  # Increment for the PID gains
 
