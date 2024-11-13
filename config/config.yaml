@@ -33,11 +33,11 @@ twist_pid_controller:
 
     debug: true  # Enable debug mode
     debug_topic: "pid_debug"  # Topic name for debug messages
-    joy_topic: "joy"  # Topic name for the joystick
+    joy_topic: "rsl_joy"  # Topic name for the joystick
 
     # Topic name for the command velocity
-    cmd_vel_input_topic: "cmd_vel_in"
-    feedback_vel_topic: "feedback_vel"
+    cmd_vel_input_topic: "cmd_vel_in_pid"
+    feedback_vel_topic: "/visual_slam/tracking/odometry"
     cmd_vel_out_topic: "/path_manager/path_manager_ros/nav_vel"
 
     k_increment: 0.05  # Increment for the PID gains
