@@ -284,6 +284,7 @@ private:
     control_output.angular.z = kp_angular_z_ * error_angular_z + ki_angular_z_ * integral_angular_z_ + kd_angular_z_ * derivative_angular_z;
 
     if (feed_forward_) {
+      RCLCPP_WARN_ONCE(this->get_logger(), "Feed forward is enabled, make sure gains are not too high");
       control_output.linear.x += desired.linear.x;
       control_output.linear.y += desired.linear.y;
       control_output.linear.z += desired.linear.z;
@@ -298,6 +299,9 @@ private:
 
     // Publish debug information
     if (debug_) {
+
+      RCLCPP_WARN_ONCE(this->get_logger(), "Debug mode is enabled");
+
       auto debug_msg = twist_pid_controller::msg::PidDebug();
 
       // Errors
