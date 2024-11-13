@@ -46,6 +46,7 @@ public:
     this->declare_parameter<double>("max_integral_angular", 1.0);
 
     this->declare_parameter<double>("control_frequency", 50.0); // Control loop frequency in Hz
+    this->declare_parameter<double>("timeout", 0.5); // Timeout in seconds
 
     this->declare_parameter<bool>("debug", false);
     this->declare_parameter<std::string>("debug_topic", "pid_debug");
@@ -87,6 +88,7 @@ public:
 
     double control_frequency;
     this->get_parameter("control_frequency", control_frequency);
+    this->get_parameter("timeout", timeout_);
     control_period_ = std::chrono::duration<double>(1.0 / control_frequency);
 
     this->get_parameter("debug", debug_);
@@ -100,26 +102,6 @@ public:
 
     // Initialize variables
     previous_time_ = this->now();
-    integral_linear_x_ = 0.0;
-    integral_linear_y_ = 0.0;
-    integral_linear_z_ = 0.0;
-    integral_angular_x_ = 0.0;
-    integral_angular_y_ = 0.0;
-    integral_angular_z_ = 0.0;
-
-    previous_error_linear_x_ = 0.0;
-    previous_error_linear_y_ = 0.0;
-    previous_error_linear_z_ = 0.0;
-    previous_error_angular_x_ = 0.0;
-    previous_error_angular_y_ = 0.0;
-    previous_error_angular_z_ = 0.0;
-
-    previous_desired_linear_x_ = 0.0;
-    previous_desired_linear_y_ = 0.0;
-    previous_desired_linear_z_ = 0.0;
-    previous_desired_angular_x_ = 0.0;
-    previous_desired_angular_y_ = 0.0;
-    previous_desired_angular_z_ = 0.0;
 
     // // Subscribers and Publishers
     cmd_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
@@ -152,12 +134,14 @@ private:
   {
     std::lock_guard<std::mutex> lock(command_mutex_);
     desired_twist_ = *msg;
+    last_cmd_time_ = this->now();
   }
 
   void feedbackCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
   {
     std::lock_guard<std::mutex> lock(feedback_mutex_);
     feedback_twist_ = *msg;
+    last_feedback_time_ = this->now();
   }
 
   void joyCallback(const sensor_msgs::msg::Joy::SharedPtr msg)
@@ -179,7 +163,7 @@ private:
 
     if (dt <= 0.0) {
       dt = 1e-6;  // Prevent division by zero or negative time
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 100, "Control loop period is 0 or negative, setting to 1e-6");
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Control loop period is 0 or negative, setting to 1e-6");
     }
 
     // Get desired and feedback velocities
@@ -292,6 +276,17 @@ private:
       control_output.angular.x += desired.angular.x;
       control_output.angular.y += desired.angular.y;
       control_output.angular.z += desired.angular.z;
+    }
+
+    // Check if the command or feedback is too old
+    if ((current_time - last_cmd_time_).seconds() > timeout_ || (current_time - last_feedback_time_).seconds() > timeout_) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Command or feedback is too old, sending zero commands");
+      control_output.linear.x = 0.0;
+      control_output.linear.y = 0.0;
+      control_output.linear.z = 0.0;
+      control_output.angular.x = 0.0;
+      control_output.angular.y = 0.0;
+      control_output.angular.z = 0.0;
     }
 
     // Publish the control output
@@ -430,34 +425,34 @@ private:
   }
 
   // Parameters
-  double kp_linear_x_;
-  double ki_linear_x_;
-  double kd_linear_x_;
+  double kp_linear_x_{0.0};
+  double ki_linear_x_{0.0};
+  double kd_linear_x_{0.0};
 
-  double kp_linear_y_;
-  double ki_linear_y_;
-  double kd_linear_y_;
+  double kp_linear_y_{0.0};
+  double ki_linear_y_{0.0};
+  double kd_linear_y_{0.0};
 
-  double kp_linear_z_;
-  double ki_linear_z_;
-  double kd_linear_z_;
+  double kp_linear_z_{0.0};
+  double ki_linear_z_{0.0};
+  double kd_linear_z_{0.0};
 
-  double kp_angular_x_;
-  double ki_angular_x_;
-  double kd_angular_x_;
+  double kp_angular_x_{0.0};
+  double ki_angular_x_{0.0};
+  double kd_angular_x_{0.0};
 
-  double kp_angular_y_; 
-  double ki_angular_y_; 
-  double kd_angular_y_;
+  double kp_angular_y_{0.0}; 
+  double ki_angular_y_{0.0}; 
+  double kd_angular_y_{0.0};
 
-  double kp_angular_z_;
-  double ki_angular_z_;
-  double kd_angular_z_; 
+  double kp_angular_z_{0.0};
+  double ki_angular_z_{0.0};
+  double kd_angular_z_{0.0}; 
 
-  bool feed_forward_;
+  bool feed_forward_{false};
 
-  double max_integral_linear_;
-  double max_integral_angular_;
+  double max_integral_linear_{0.0};
+  double max_integral_angular_{0.0};
 
   std::string cmd_vel_in_;
   std::string feedback_vel_;
@@ -465,37 +460,40 @@ private:
 
   std::chrono::duration<double> control_period_;
 
-  bool debug_;
-  double k_increment_;
+  bool debug_{false};
+  double k_increment_{0.0};
   std::string debug_topic_;
   std::string joy_topic_;
 
   // State variables
   rclcpp::Time previous_time_;
+  rclcpp::Time last_cmd_time_;
+  rclcpp::Time last_feedback_time_;
+  double timeout_{0.0};
 
-  double integral_linear_x_;
-  double integral_linear_y_;
-  double integral_linear_z_;
+  double integral_linear_x_{0.0};
+  double integral_linear_y_{0.0};
+  double integral_linear_z_{0.0};
 
-  double integral_angular_x_;
-  double integral_angular_y_;
-  double integral_angular_z_;
+  double integral_angular_x_{0.0};
+  double integral_angular_y_{0.0};
+  double integral_angular_z_{0.0};
 
-  double previous_error_linear_x_;
-  double previous_error_linear_y_;
-  double previous_error_linear_z_;
+  double previous_error_linear_x_{0.0};
+  double previous_error_linear_y_{0.0};
+  double previous_error_linear_z_{0.0};
 
-  double previous_error_angular_x_;
-  double previous_error_angular_y_;
-  double previous_error_angular_z_;
+  double previous_error_angular_x_{0.0};
+  double previous_error_angular_y_{0.0};
+  double previous_error_angular_z_{0.0};
 
-  double previous_desired_linear_x_;
-  double previous_desired_linear_y_;
-  double previous_desired_linear_z_;
+  double previous_desired_linear_x_{0.0};
+  double previous_desired_linear_y_{0.0};
+  double previous_desired_linear_z_{0.0};
 
-  double previous_desired_angular_x_;
-  double previous_desired_angular_y_;
-  double previous_desired_angular_z_;
+  double previous_desired_angular_x_{0.0};
+  double previous_desired_angular_y_{0.0};
+  double previous_desired_angular_z_{0.0};
 
   // Subscribers
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_subscriber_;

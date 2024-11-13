@@ -31,6 +31,8 @@ twist_pid_controller:
 
     control_frequency: 50.0
 
+    timeout: 0.5
+
     debug: true  # Enable debug mode
     debug_topic: "pid_debug"  # Topic name for debug messages
     joy_topic: "rsl_joy"  # Topic name for the joystick
