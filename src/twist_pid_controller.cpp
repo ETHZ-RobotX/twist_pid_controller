@@ -4,6 +4,7 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "geometry_msgs/msg/twist.hpp"
+#include "nav_msgs/msg/odometry.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "twist_pid_controller/msg/pid_debug.hpp"
 
@@ -108,7 +109,7 @@ public:
       cmd_vel_in_, 10,
       std::bind(&TwistPIDController::cmdCallback, this, std::placeholders::_1));
 
-    feedback_subscriber_ = this->create_subscription<geometry_msgs::msg::Twist>(
+    feedback_subscriber_ = this->create_subscription<nav_msgs::msg::Odometry>(
       feedback_vel_, 10,
       std::bind(&TwistPIDController::feedbackCallback, this, std::placeholders::_1));
 
@@ -134,13 +135,17 @@ private:
   {
     std::lock_guard<std::mutex> lock(command_mutex_);
     desired_twist_ = *msg;
+    desired_twist_.linear.x *= 0.5; 
+    desired_twist_.linear.y *= 0.5;
+    desired_twist_.linear.z *= 0.75;
     last_cmd_time_ = this->now();
   }
 
-  void feedbackCallback(const geometry_msgs::msg::Twist::SharedPtr msg)
+  void feedbackCallback(const nav_msgs::msg::Odometry::SharedPtr msg)
   {
     std::lock_guard<std::mutex> lock(feedback_mutex_);
-    feedback_twist_ = *msg;
+    // feedback_twist_ = *msg;
+    feedback_twist_ = msg->twist.twist;
     last_feedback_time_ = this->now();
   }
 
@@ -279,15 +284,15 @@ private:
     }
 
     // Check if the command or feedback is too old
-    if ((current_time - last_cmd_time_).seconds() > timeout_ || (current_time - last_feedback_time_).seconds() > timeout_) {
-      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Command or feedback is too old, sending zero commands");
-      control_output.linear.x = 0.0;
-      control_output.linear.y = 0.0;
-      control_output.linear.z = 0.0;
-      control_output.angular.x = 0.0;
-      control_output.angular.y = 0.0;
-      control_output.angular.z = 0.0;
-    }
+    // if ((current_time - last_cmd_time_).seconds() > timeout_ || (current_time - last_feedback_time_).seconds() > timeout_) {
+    //   RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000, "Command or feedback is too old, sending zero commands");
+    //   control_output.linear.x = 0.0;
+    //   control_output.linear.y = 0.0;
+    //   control_output.linear.z = 0.0;
+    //   control_output.angular.x = 0.0;
+    //   control_output.angular.y = 0.0;
+    //   control_output.angular.z = 0.0;
+    // }
 
     // Publish the control output
     pid_publisher_->publish(control_output);
@@ -497,7 +502,7 @@ private:
 
   // Subscribers
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_subscriber_;
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr feedback_subscriber_;
+  rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr feedback_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_subscriber_;
 
   // Publishers
