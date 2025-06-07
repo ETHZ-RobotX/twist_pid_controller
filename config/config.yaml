@@ -29,18 +29,18 @@ twist_pid_controller:
     max_integral_linear: 1.0
     max_integral_angular: 1.0
 
-    control_frequency: 50.0
+    control_frequency: 100.0
 
     timeout: 0.5
 
     debug: true  # Enable debug mode
     debug_topic: "pid_debug"  # Topic name for debug messages
-    joy_topic: "rsl_joy"  # Topic name for the joystick
+    joy_topic: "joy"  # Topic name for the joystick
 
     # Topic name for the command velocity
-    cmd_vel_input_topic: "cmd_vel_in_pid"
-    feedback_vel_topic: "/visual_slam/tracking/odometry"
-    cmd_vel_out_topic: "/path_manager/path_manager_ros/nav_vel"
+    cmd_vel_input_topic: "/nav_vel_cmd"
+    feedback_vel_topic: "/local_odometry"
+    cmd_vel_out_topic: "/nav_vel
 
     k_increment: 0.05  # Increment for the PID gains
 
