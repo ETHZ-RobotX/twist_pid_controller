@@ -11,9 +11,12 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package=package_name,
-            executable='twist_pid_controller_node',  # Updated executable name
+            executable='twist_pid_controller_node',  
             name='twist_pid_controller',
-            parameters=[config],
+            parameters=[
+                {'use_sim_time': True},
+                config
+            ],
             output='screen'
         )
     ])

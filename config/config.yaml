@@ -1,6 +1,6 @@
 twist_pid_controller:
   ros__parameters:
-    kp_linear_x: 0.0
+    kp_linear_x: 1.0
     ki_linear_x: 0.0
     kd_linear_x: 0.0
 
@@ -20,7 +20,7 @@ twist_pid_controller:
     ki_angular_y: 0.0
     kd_angular_y: 0.0
 
-    kp_angular_z: 0.0
+    kp_angular_z: 1.0
     ki_angular_z: 0.0
     kd_angular_z: 0.0
 
@@ -40,7 +40,7 @@ twist_pid_controller:
     # Topic name for the command velocity
     cmd_vel_input_topic: "/nav_vel_cmd"
     feedback_vel_topic: "/local_odometry"
-    cmd_vel_out_topic: "/nav_vel
+    cmd_vel_out_topic: "/nav_vel"
 
     k_increment: 0.05  # Increment for the PID gains
 
