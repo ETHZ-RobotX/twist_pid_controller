@@ -59,6 +59,8 @@ public:
   TwistPIDController()
   : Node("twist_pid_controller")
   {
+    last_fb_time_ = this->now(); 
+
     loadParameters();
 
     setupCommunication();
@@ -205,13 +207,13 @@ private:
 
   void setupCommunication() {
     // Wait for /clock if using sim time
-    if (this->get_parameter("use_sim_time").as_bool()) {
-        RCLCPP_INFO(this->get_logger(), "Waiting for /clock to be active...");
-        while (rclcpp::ok() && this->now().nanoseconds() == 0) {
-            rclcpp::sleep_for(std::chrono::milliseconds(100));
-        }
-        RCLCPP_INFO(this->get_logger(), "/clock is active.");
-    }
+    // if (this->get_parameter("use_sim_time").as_bool()) {
+    //     RCLCPP_INFO(this->get_logger(), "Waiting for /clock to be active...");
+    //     while (rclcpp::ok() && this->now().nanoseconds() == 0) {
+    //         rclcpp::sleep_for(std::chrono::milliseconds(100));
+    //     }
+    //     RCLCPP_INFO(this->get_logger(), "/clock is active.");
+    // }
 
     cmd_sub_ = create_subscription<geometry_msgs::msg::TwistStamped>(
       cmd_vel_in_, 10,
